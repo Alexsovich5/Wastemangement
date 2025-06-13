@@ -13,7 +13,7 @@
    ```
 
 3. **Access the system:**
-   - URL: http://localhost
+   - URL: http://localhost:8000
    - Username: Administrator
    - Password: admin123
 
@@ -26,10 +26,9 @@
 
 ## System Components
 
-- **ERPNext Application:** Main business application
+- **ERPNext Application:** Main business application (port 8000)
 - **MariaDB Database:** Data storage
 - **Redis:** Caching and queue management
-- **Nginx:** Web server and reverse proxy
 
 ## Default Credentials
 
@@ -44,7 +43,7 @@ After initial setup, follow the configuration guide to customize ERPNext for med
 
 ## Troubleshooting
 
-1. **Port conflicts:** If port 80 is in use, edit docker-compose.yml to change nginx ports
+1. **Port conflicts:** If port 8000 is in use, edit docker-compose.yml to change ERPNext port
 2. **Memory issues:** Ensure Docker Desktop has at least 4GB RAM allocated
 3. **Permission issues:** Make sure Docker Desktop is running with proper permissions
 
