@@ -47,16 +47,19 @@ services:
 
   # ERPNext Backend
   erpnext:
-    image: frappe/erpnext:v15.43.0
+    image: frappe/erpnext:latest
     restart: unless-stopped
     environment:
       - DB_HOST=db
       - DB_PORT=3306
       - DB_NAME=erpnext_db
+      - DB_ROOT_PASSWORD=medwaste123
       - DB_PASSWORD=erpnext123
       - REDIS_CACHE_URL=redis://redis_cache:6379
       - REDIS_QUEUE_URL=redis://redis_queue:6379
       - FRAPPE_SITE_NAME_HEADER=localhost
+      - ADMIN_PASSWORD=admin123
+      - INSTALL_APPS=erpnext
       - DB_TIMEOUT=120
       - MYSQL_CONNECT_TIMEOUT=60
     volumes:
@@ -76,7 +79,7 @@ services:
 
   # ERPNext Worker (Background Jobs)
   worker:
-    image: frappe/erpnext:v15.43.0
+    image: frappe/erpnext:latest
     restart: unless-stopped
     command: ["bench", "worker", "--queue", "default,long,short"]
     environment:
@@ -103,7 +106,7 @@ services:
 
   # ERPNext Scheduler (Cron Jobs)
   scheduler:
-    image: frappe/erpnext:v15.43.0
+    image: frappe/erpnext:latest
     restart: unless-stopped
     command: ["bench", "schedule"]
     environment:
@@ -128,20 +131,28 @@ services:
       redis_queue:
         condition: service_started
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
+  # Nginx Proxy Manager with Web UI
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
     restart: unless-stopped
     ports:
-      - "8080:80"
-      - "8443:443"
+      - "80:80"     # HTTP
+      - "443:443"   # HTTPS
+      - "81:81"     # Admin Web UI
+    environment:
+      DB_MYSQL_HOST: "db"
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: "erpnext"
+      DB_MYSQL_PASSWORD: "erpnext123"
+      DB_MYSQL_NAME: "npm_db"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - erpnext_data:/var/www/html/sites
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
     networks:
       - erpnext-network
     depends_on:
-      - erpnext
+      db:
+        condition: service_healthy
 
 volumes:
   db_data:
@@ -149,6 +160,8 @@ volumes:
   redis_queue_data:
   erpnext_data:
   erpnext_logs:
+  npm_data:
+  npm_letsencrypt:
 
 networks:
   erpnext-network:
