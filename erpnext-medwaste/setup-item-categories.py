@@ -259,7 +259,7 @@ def setup_warehouses():
             print(f"✅ Created warehouse: {wh_data['warehouse_name']}")
 
 def main():
-    """Main setup function"""
+    """Main setup function for bench execute"""
     try:
         print("🏗️  Setting up Medical Waste Item Categories...")
         
@@ -282,5 +282,10 @@ def main():
         frappe.db.rollback()
         raise
 
+# For bench execute compatibility - function is called directly
 if __name__ == "__main__":
+    # Standalone execution with Frappe initialization
+    import frappe
+    frappe.init(site='frontend')
+    frappe.connect()
     main()

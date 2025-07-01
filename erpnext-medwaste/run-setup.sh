@@ -31,37 +31,37 @@ echo "🔧 Running setup scripts..."
 
 # Copy setup scripts to container
 echo "📁 Copying setup scripts to container..."
-docker compose cp setup-item-categories.py erpnext:/home/frappe/frappe-bench/
-docker compose cp setup-stock-module.py erpnext:/home/frappe/frappe-bench/
-docker compose cp create-custom-doctypes.py erpnext:/home/frappe/frappe-bench/
-docker compose cp setup-manufacturing-workflows.py erpnext:/home/frappe/frappe-bench/
-docker compose cp setup-buying-module.py erpnext:/home/frappe/frappe-bench/
-docker compose cp create-compliance-reports.py erpnext:/home/frappe/frappe-bench/
+docker compose cp setup-item-categories.py backend:/home/frappe/frappe-bench/
+docker compose cp setup-stock-module.py backend:/home/frappe/frappe-bench/
+docker compose cp create-custom-doctypes.py backend:/home/frappe/frappe-bench/
+docker compose cp setup-manufacturing-workflows.py backend:/home/frappe/frappe-bench/
+docker compose cp setup-buying-module.py backend:/home/frappe/frappe-bench/
+docker compose cp create-compliance-reports.py backend:/home/frappe/frappe-bench/
 
 # Run the setup scripts in sequence
 echo "📦 Step 1/6: Setting up item categories..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} execute setup-item-categories.main
+docker compose exec backend bench --site frontend execute setup-item-categories.main
 
 echo "📊 Step 2/6: Configuring stock module..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} execute setup-stock-module.main
+docker compose exec backend bench --site frontend execute setup-stock-module.main
 
 echo "📋 Step 3/6: Creating custom doctypes..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} execute create-custom-doctypes.main
+docker compose exec backend bench --site frontend execute create-custom-doctypes.main
 
 echo "🔄 Migrating database after custom doctypes..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} migrate
+docker compose exec backend bench --site frontend migrate
 
 echo "🏭 Step 4/6: Setting up manufacturing workflows..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} execute setup-manufacturing-workflows.main
+docker compose exec backend bench --site frontend execute setup-manufacturing-workflows.main
 
 echo "🛒 Step 5/6: Configuring buying module..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} execute setup-buying-module.main
+docker compose exec backend bench --site frontend execute setup-buying-module.main
 
 echo "📊 Step 6/6: Creating compliance reports..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} execute create-compliance-reports.main
+docker compose exec backend bench --site frontend execute create-compliance-reports.main
 
 echo "🔄 Final database migration..."
-docker compose exec erpnext bench --site ${FRAPPE_SITE_NAME} migrate
+docker compose exec backend bench --site frontend migrate
 
 echo "✅ Medical waste management setup completed!"
 echo ""
