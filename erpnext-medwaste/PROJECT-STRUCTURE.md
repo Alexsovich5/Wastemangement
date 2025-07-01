@@ -2,7 +2,7 @@
 
 ## Directory Organization
 
-```
+```text
 erpnext-medwaste/
 ├── README.md                          # Main project documentation
 ├── CLAUDE.md                          # Development instructions
@@ -95,6 +95,7 @@ erpnext-medwaste/
 ## Clean Environment
 
 This organization separates:
+
 - **Production code** (root level)
 - **Setup utilities** (setup/ directory)
 - **Documentation** (docs/ directory)  

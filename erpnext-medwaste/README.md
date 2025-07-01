@@ -1,21 +1,31 @@
 # ERPNext Medical Waste Management System
 
-## Quick Start
+> Complete containerized ERPNext deployment with specialized medical waste management features
 
-1. **Start the system:**
-   ```bash
-   ./start.sh
-   ```
+## 🚀 One-Command Installation
 
-2. **Setup the site (run once after first start):**
-   ```bash
-   ./setup-site.sh
-   ```
+For fresh installations (new machines):
 
-3. **Access the system:**
-   - URL: http://localhost:8000
-   - Username: Administrator
-   - Password: admin123
+```bash
+git clone <repository-url>
+cd erpnext-medwaste
+./install.sh
+```
+
+**That's it!** The script automatically:
+- ✅ Checks prerequisites and ports
+- ✅ Downloads and starts ERPNext system  
+- ✅ Creates site and installs medical waste features
+- ✅ Sets up 33+ item groups, 6 warehouses, 7 custom fields
+
+## 📋 Quick Access
+
+After installation:
+- **Web Interface**: http://localhost:8081
+- **Username**: Administrator
+- **Password**: admin
+
+## 🛠️ Manual Management (Existing Installations)
 
 ## Management Commands
 
