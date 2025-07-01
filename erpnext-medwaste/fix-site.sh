@@ -24,45 +24,83 @@ echo "✓ Backend services are ready"
 
 cd /home/frappe/frappe-bench
 
-# Step 2: Set up proper site configurations
-echo "Step 2: Setting up site configurations..."
+# Step 2: Set up common site configuration
+echo "Step 2: Setting up common site configuration..."
 
 # Copy common site config
-cp /site_config_template.json sites/common_site_config.json
+cp /common_site_config_template.json sites/common_site_config.json
 echo "✓ Common site config updated"
 
-# Ensure localhost site directory exists
-mkdir -p sites/localhost/private/backups
-mkdir -p sites/localhost/public/files
-mkdir -p sites/localhost/logs
-mkdir -p sites/localhost/locks
+# Step 3: Create site and install ERPNext
+echo "Step 3: Creating new site..."
 
-# Copy site-specific config
-cp /site_config_template.json sites/localhost/site_config.json
-echo "✓ Site config updated"
+# Remove any existing site first
+if [ -d "sites/localhost" ]; then
+    echo "Removing existing site directory..."
+    rm -rf sites/localhost
+fi
 
-# Step 3: Create database and install frappe
-echo "Step 3: Setting up database..."
-
-# Use bench to create database properly
-bench --site localhost reinstall \
-    --yes \
-    --admin-password "$ADMIN_PASSWORD" \
+# Create new site WITHOUT installing apps first
+bench new-site localhost \
     --mariadb-root-password "$MYSQL_ROOT_PASSWORD" \
-    --force || echo "Reinstall completed with warnings"
+    --admin-password "$ADMIN_PASSWORD" \
+    --no-mariadb-socket
 
-echo "✓ Database setup completed"
+if [ $? -ne 0 ]; then
+    echo "❌ Site creation failed"
+    exit 1
+fi
 
-# Step 4: Install ERPNext
-echo "Step 4: Installing ERPNext..."
-bench --site localhost install-app erpnext || echo "ERPNext installation completed with warnings"
+echo "✓ Site created successfully"
 
-echo "✓ ERPNext installed"
+# Step 3.5: Apply proper site configuration
+echo "Step 3.5: Applying site configuration..."
+cp /site_config_template.json sites/localhost/site_config.json
+echo "✓ Site configuration applied"
 
-# Step 5: Final setup
-echo "Step 5: Final setup..."
+# Step 3.6: Install ERPNext app
+echo "Step 3.6: Installing ERPNext..."
+bench --site localhost install-app erpnext
+
+if [ $? -ne 0 ]; then
+    echo "❌ ERPNext installation failed"
+    exit 1
+fi
+
+echo "✓ ERPNext installed successfully"
+
+# Step 4: Database migration
+echo "Step 4: Running database migration..."
 bench --site localhost migrate
+
+if [ $? -ne 0 ]; then
+    echo "❌ Database migration failed"
+    exit 1
+fi
+
+echo "✓ Database migration completed"
+
+# Step 5: Build assets
+echo "Step 5: Building assets..."
 bench --site localhost build
+
+if [ $? -ne 0 ]; then
+    echo "❌ Asset build failed"
+    exit 1
+fi
+
+echo "✓ Assets built successfully"
+
+# Step 6: Validate database tables were created
+echo "Step 6: Validating database setup..."
+TABLES_COUNT=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" -D"$DB_NAME" -se "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME';")
+
+if [ "$TABLES_COUNT" -lt 50 ]; then
+    echo "❌ Database validation failed - only $TABLES_COUNT tables found (expected 50+)"
+    exit 1
+fi
+
+echo "✓ Database validation passed - $TABLES_COUNT tables created"
 
 echo "🎉 ERPNext site creation completed successfully!"
 echo "You can now access ERPNext at http://localhost"
