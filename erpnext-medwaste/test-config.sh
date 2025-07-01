@@ -1,9 +1,11 @@
 #!/bin/bash
 echo "🔧 Testing ERPNext Configuration..."
 
-# Load environment variables
+# Load environment variables securely
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 echo "📋 Configuration Summary:"

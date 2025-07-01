@@ -1,6 +1,6 @@
 {
  "db_host": "db",
- "db_name": "npm_db",
+ "db_name": "erpnext_db",
  "db_password": "erpnext123",
  "db_port": 3306,
  "db_type": "mariadb",

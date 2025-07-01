@@ -7,9 +7,11 @@ if ! docker info >/dev/null 2>&1; then
     exit 1
 fi
 
-# Load environment variables
+# Load environment variables securely
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 # Start the system

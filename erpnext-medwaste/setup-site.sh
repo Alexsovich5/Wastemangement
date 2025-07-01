@@ -1,9 +1,11 @@
 #!/bin/bash
 echo "🏗️  Setting up ERPNext site for Medical Waste Management..."
 
-# Load environment variables
+# Load environment variables securely
 if [ -f .env ]; then
-    export $(cat .env | grep -v '#' | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 # Wait for services to be ready
@@ -19,8 +21,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Create the site
-echo "🏗️ Creating ERPNext site: ${FRAPPE_SITE_NAME}"
-docker compose exec erpnext bench new-site ${FRAPPE_SITE_NAME} \
+echo "🏗️ Creating ERPNext site: ${SITE_NAME}"
+docker compose exec erpnext bench new-site ${SITE_NAME} \
     --mariadb-root-password ${DB_ROOT_PASSWORD} \
     --admin-password ${ADMIN_PASSWORD} \
     --install-app ${INSTALL_APPS}
@@ -31,7 +33,7 @@ if [ $? -eq 0 ]; then
     echo "   Username: Administrator"
     echo "   Password: ${ADMIN_PASSWORD}"
     echo "📱 Access your system at: http://localhost"
-    echo "🌐 Site name: ${FRAPPE_SITE_NAME}"
+    echo "🌐 Site name: ${SITE_NAME}"
 else
     echo "❌ Site setup failed. Check the logs for more details."
     exit 1

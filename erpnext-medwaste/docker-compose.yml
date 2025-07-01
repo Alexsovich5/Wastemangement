@@ -131,7 +131,6 @@ services:
       redis_queue:
         condition: service_healthy
     ports:
-      - "80:8000"
       - "${ERPNEXT_EXTERNAL_PORT}:${ERPNEXT_PORT}"
 
   # ERPNext Worker (Background Jobs)
@@ -209,7 +208,7 @@ services:
     image: jc21/nginx-proxy-manager:latest
     restart: unless-stopped
     ports:
-      - "${NGINX_HTTP_PORT}:80"     # HTTP
+      - "80:80"                      # HTTP
       - "${NGINX_HTTPS_PORT}:443"   # HTTPS
       - "${NGINX_ADMIN_PORT}:81"     # Admin Web UI
     environment:
