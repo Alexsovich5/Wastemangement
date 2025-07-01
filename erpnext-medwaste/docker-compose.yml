@@ -1,209 +1,208 @@
+version: "3"
+
 services:
+  backend:
+    image: frappe/erpnext:v15.66.1
+    networks:
+      - erpnext-network
+    restart: unless-stopped
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+  configurator:
+    image: frappe/erpnext:v15.66.1
+    networks:
+      - erpnext-network
+    restart: "no"
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host $$DB_HOST;
+        bench set-config -gp db_port $$DB_PORT;
+        bench set-config -g redis_cache "redis://$$REDIS_CACHE";
+        bench set-config -g redis_queue "redis://$$REDIS_QUEUE";
+        bench set-config -g redis_socketio "redis://$$REDIS_QUEUE";
+        bench set-config -gp socketio_port $$SOCKETIO_PORT;
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      SOCKETIO_PORT: "9000"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+
+  create-site:
+    image: frappe/erpnext:v15.66.1
+    networks:
+      - erpnext-network
+    restart: "no"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        wait-for-it -t 120 db:3306;
+        wait-for-it -t 120 redis-cache:6379;
+        wait-for-it -t 120 redis-queue:6379;
+        export start=`date +%s`;
+        until [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] && \
+          [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_cache // empty"` ]] && \
+          [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_queue // empty"` ]];
+        do
+          echo "Waiting for sites/common_site_config.json to be created";
+          sleep 5;
+          if (( `date +%s`-start > 120 )); then
+            echo "could not find sites/common_site_config.json with required keys";
+            exit 1
+          fi
+        done;
+        echo "sites/common_site_config.json found";
+        bench new-site --mariadb-user-host-login-scope='%' --admin-password=${ADMIN_PASSWORD} --db-root-username=root --db-root-password=${MYSQL_ROOT_PASSWORD} --install-app erpnext --set-default frontend;
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
   # MariaDB Database
   db:
-    image: mariadb:10.3
+    image: mariadb:10.6
+    networks:
+      - erpnext-network
+    healthcheck:
+      test: mysqladmin ping -h localhost --password=${MYSQL_ROOT_PASSWORD}
+      interval: 1s
+      retries: 20
     restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-character-set-client-handshake
-      - --wait_timeout=28800
-      - --interactive_timeout=28800
-      - --max_connections=1000
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      - --skip-innodb-read-only-compressed
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    networks:
-      - erpnext-network
     ports:
       - "${DB_EXTERNAL_PORT}:3306"
 
-  # Redis Cache
-  redis_cache:
-    image: redis:6-alpine
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
-    volumes:
-      - redis_cache_data:/data
+  frontend:
+    image: frappe/erpnext:v15.66.1
     networks:
       - erpnext-network
-
-  # Redis Queue
-  redis_queue:
-    image: redis:6-alpine
+    depends_on:
+      - websocket
+      - backend
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
+    command:
+      - nginx-entrypoint.sh
+    environment:
+      BACKEND: backend:8000
+      FRAPPE_SITE_NAME_HEADER: frontend
+      SOCKETIO: websocket:9000
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    ports:
+      - "${ERPNEXT_EXTERNAL_PORT}:8080"
+
+  queue-long:
+    image: frappe/erpnext:v15.66.1
+    networks:
+      - erpnext-network
+    restart: unless-stopped
+    command:
+      - bench
+      - worker
+      - --queue
+      - long,default,short
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+
+  queue-short:
+    image: frappe/erpnext:v15.66.1
+    networks:
+      - erpnext-network
+    restart: unless-stopped
+    command:
+      - bench
+      - worker
+      - --queue
+      - short,default
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+
+  redis-queue:
+    image: redis:6.2-alpine
+    networks:
+      - erpnext-network
+    restart: unless-stopped
     volumes:
       - redis_queue_data:/data
+
+  redis-cache:
+    image: redis:6.2-alpine
     networks:
       - erpnext-network
-
-  # ERPNext Site Fix
-  erpnext-site-fix:
-    image: frappe/erpnext:latest
-    restart: "no"
-    environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_ROOT_USER=${MYSQL_ROOT_USER}
-      - REDIS_CACHE_URL=${REDIS_CACHE_URL}
-      - REDIS_QUEUE_URL=${REDIS_QUEUE_URL}
-      - REDIS_SOCKETIO_URL=${REDIS_SOCKETIO_URL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - SITE_NAME=${SITE_NAME}
-    volumes:
-      - erpnext_data:/home/frappe/frappe-bench/sites
-      - erpnext_logs:/home/frappe/frappe-bench/logs
-      - ./fix-site.sh:/fix-site.sh
-      - ./site_config_template.json:/site_config_template.json
-      - ./common_site_config_template.json:/common_site_config_template.json
-    networks:
-      - erpnext-network
-    depends_on:
-      db:
-        condition: service_healthy
-      redis_cache:
-        condition: service_healthy
-      redis_queue:
-        condition: service_started
-    command: ["/fix-site.sh"]
-
-  # ERPNext Backend
-  erpnext:
-    image: frappe/erpnext:latest
     restart: unless-stopped
-    environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_CACHE_URL=${REDIS_CACHE_URL}
-      - REDIS_QUEUE_URL=${REDIS_QUEUE_URL}
-      - REDIS_SOCKETIO_URL=${REDIS_SOCKETIO_URL}
-      - FRAPPE_SITE_NAME_HEADER=${FRAPPE_SITE_NAME_HEADER}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - INSTALL_APPS=${INSTALL_APPS}
-      - DB_TIMEOUT=${DB_TIMEOUT}
-      - MYSQL_CONNECT_TIMEOUT=${MYSQL_CONNECT_TIMEOUT}
-      - TZ=${TZ}
-    volumes:
-      - erpnext_data:/home/frappe/frappe-bench/sites
-      - erpnext_logs:/home/frappe/frappe-bench/logs
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/method/ping || exit 1"]
-      timeout: 30s
-      retries: 5
-      interval: 60s
-      start_period: 120s
-    networks:
-      - erpnext-network
-    depends_on:
-      erpnext-site-fix:
-        condition: service_completed_successfully
-      db:
-        condition: service_healthy
-      redis_cache:
-        condition: service_healthy
-      redis_queue:
-        condition: service_healthy
-    ports:
-      - "${ERPNEXT_EXTERNAL_PORT}:${ERPNEXT_PORT}"
 
-  # ERPNext Worker (Background Jobs)
-  worker:
-    image: frappe/erpnext:latest
-    restart: unless-stopped
-    command: ["bench", "worker", "--queue", "default,long,short"]
-    environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_CACHE_URL=${REDIS_CACHE_URL}
-      - REDIS_QUEUE_URL=${REDIS_QUEUE_URL}
-      - REDIS_SOCKETIO_URL=${REDIS_SOCKETIO_URL}
-      - DB_TIMEOUT=${DB_TIMEOUT}
-      - MYSQL_CONNECT_TIMEOUT=${MYSQL_CONNECT_TIMEOUT}
-      - TZ=${TZ}
-    volumes:
-      - erpnext_data:/home/frappe/frappe-bench/sites
-      - erpnext_logs:/home/frappe/frappe-bench/logs
-    networks:
-      - erpnext-network
-    depends_on:
-      erpnext-site-fix:
-        condition: service_completed_successfully
-      db:
-        condition: service_healthy
-      redis_cache:
-        condition: service_healthy
-      redis_queue:
-        condition: service_healthy
-      erpnext:
-        condition: service_healthy
-
-  # ERPNext Scheduler (Cron Jobs)
   scheduler:
-    image: frappe/erpnext:latest
-    restart: unless-stopped
-    command: ["bench", "schedule"]
-    environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_CACHE_URL=${REDIS_CACHE_URL}
-      - REDIS_QUEUE_URL=${REDIS_QUEUE_URL}
-      - REDIS_SOCKETIO_URL=${REDIS_SOCKETIO_URL}
-      - DB_TIMEOUT=${DB_TIMEOUT}
-      - MYSQL_CONNECT_TIMEOUT=${MYSQL_CONNECT_TIMEOUT}
-      - TZ=${TZ}
-    volumes:
-      - erpnext_data:/home/frappe/frappe-bench/sites
-      - erpnext_logs:/home/frappe/frappe-bench/logs
+    image: frappe/erpnext:v15.66.1
     networks:
       - erpnext-network
+    restart: unless-stopped
+    command:
+      - bench
+      - schedule
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
     depends_on:
-      erpnext-site-fix:
+      create-site:
         condition: service_completed_successfully
-      db:
-        condition: service_healthy
-      redis_cache:
-        condition: service_healthy
-      redis_queue:
-        condition: service_healthy
-      erpnext:
-        condition: service_healthy
 
-  # Nginx Proxy Manager with Web UI
+  websocket:
+    image: frappe/erpnext:v15.66.1
+    networks:
+      - erpnext-network
+    restart: unless-stopped
+    command:
+      - node
+      - /home/frappe/frappe-bench/apps/frappe/socketio.js
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+
+  # Nginx Proxy Manager for external access
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
     restart: unless-stopped
@@ -212,10 +211,10 @@ services:
       - "${NGINX_HTTPS_PORT}:443"   # HTTPS
       - "${NGINX_ADMIN_PORT}:81"     # Admin Web UI
     environment:
-      DB_MYSQL_HOST: "${DB_HOST}"
-      DB_MYSQL_PORT: ${DB_PORT}
-      DB_MYSQL_USER: "${DB_USER}"
-      DB_MYSQL_PASSWORD: "${DB_PASSWORD}"
+      DB_MYSQL_HOST: "db"
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: "root"
+      DB_MYSQL_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
       DB_MYSQL_NAME: "${NPM_DB_NAME}"
     volumes:
       - npm_data:/data
@@ -228,10 +227,9 @@ services:
 
 volumes:
   db_data:
-  redis_cache_data:
   redis_queue_data:
-  erpnext_data:
-  erpnext_logs:
+  sites:
+  logs:
   npm_data:
   npm_letsencrypt:
 

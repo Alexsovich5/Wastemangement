@@ -40,34 +40,24 @@ if [ -d "sites/localhost" ]; then
     rm -rf sites/localhost
 fi
 
-# Create new site WITHOUT installing apps first
+# Set environment variables for Redis configuration
+export REDIS_CACHE_URL="redis://redis_cache:6379"
+export REDIS_QUEUE_URL="redis://redis_queue:6379" 
+export REDIS_SOCKETIO_URL="redis://redis_queue:6379"
+
+# Create new site WITH ERPNext in one step using environment variables
 bench new-site localhost \
     --mariadb-root-password "$MYSQL_ROOT_PASSWORD" \
     --admin-password "$ADMIN_PASSWORD" \
-    --no-mariadb-socket
+    --no-mariadb-socket \
+    --install-app erpnext
 
 if [ $? -ne 0 ]; then
-    echo "❌ Site creation failed"
+    echo "❌ Site creation and ERPNext installation failed"
     exit 1
 fi
 
-echo "✓ Site created successfully"
-
-# Step 3.5: Apply proper site configuration
-echo "Step 3.5: Applying site configuration..."
-cp /site_config_template.json sites/localhost/site_config.json
-echo "✓ Site configuration applied"
-
-# Step 3.6: Install ERPNext app
-echo "Step 3.6: Installing ERPNext..."
-bench --site localhost install-app erpnext
-
-if [ $? -ne 0 ]; then
-    echo "❌ ERPNext installation failed"
-    exit 1
-fi
-
-echo "✓ ERPNext installed successfully"
+echo "✓ Site created and ERPNext installed successfully"
 
 # Step 4: Database migration
 echo "Step 4: Running database migration..."
