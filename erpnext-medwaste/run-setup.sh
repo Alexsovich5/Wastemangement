@@ -31,12 +31,12 @@ echo "🔧 Running setup scripts..."
 
 # Copy setup scripts to container
 echo "📁 Copying setup scripts to container..."
-docker compose cp setup-item-categories.py backend:/home/frappe/frappe-bench/
-docker compose cp setup-stock-module.py backend:/home/frappe/frappe-bench/
-docker compose cp create-custom-doctypes.py backend:/home/frappe/frappe-bench/
-docker compose cp setup-manufacturing-workflows.py backend:/home/frappe/frappe-bench/
-docker compose cp setup-buying-module.py backend:/home/frappe/frappe-bench/
-docker compose cp create-compliance-reports.py backend:/home/frappe/frappe-bench/
+docker compose cp setup/scripts/setup-item-categories.py backend:/home/frappe/frappe-bench/
+docker compose cp setup/scripts/setup-stock-module.py backend:/home/frappe/frappe-bench/
+docker compose cp setup/scripts/create-custom-doctypes.py backend:/home/frappe/frappe-bench/
+docker compose cp setup/scripts/setup-manufacturing-workflows.py backend:/home/frappe/frappe-bench/
+docker compose cp setup/scripts/setup-buying-module.py backend:/home/frappe/frappe-bench/
+docker compose cp setup/scripts/create-compliance-reports.py backend:/home/frappe/frappe-bench/
 
 # Run the setup scripts in sequence
 echo "📦 Step 1/6: Setting up item categories..."
