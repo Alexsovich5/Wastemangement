@@ -16,12 +16,12 @@ This is a containerized ERPNext deployment specifically configured for medical w
 - **Initial setup**: `./setup-site.sh` (run once after first start)
 
 ### Testing & Configuration
-- **Test configuration**: `./test-config.sh` (validates all environments)
-- **Test setup logic**: `./test-setup.sh` (validates setup script)
+- **Test configuration**: `./temp_files/test-config.sh` (validates all environments)
+- **Test setup logic**: `./temp_files/test-setup.sh` (validates setup script)
 - **Install test dependencies**: `npm install`
-- **Run automated tests**: `node test-site.js` (requires running services)
-- **Login test**: `node quick-login-test.js`
-- **Styling test**: `node test-styling.js`
+- **Run automated tests**: `node temp_files/test-site.js` (requires running services)
+- **Login test**: `node temp_files/quick-login-test.js`
+- **Styling test**: `node temp_files/test-styling.js`
 
 ### Docker Operations
 - **View running containers**: `docker compose ps`
@@ -122,6 +122,20 @@ Tests generate screenshots for visual validation and run in non-headless mode by
 - **Site name**: medwaste.local (configured in setup)
 - **Network**: All services communicate via `erpnext-network` bridge
 - **Medical waste setup**: Run `./run-setup.sh` after initial site creation
+
+## Project Organization
+
+### Directory Structure
+- **setup/scripts/**: Medical waste setup Python scripts
+- **setup/templates/**: Configuration templates  
+- **docs/**: Documentation and screenshots
+- **temp_files/**: Development and testing files
+- **Root level**: Core operational scripts and configuration
+
+### Cleanup and Maintenance
+- **Clean up project**: `./cleanup.sh` (removes temporary files)
+- **Deep cleanup**: `./cleanup.sh --deep` (also removes node_modules)
+- **Project structure**: See `PROJECT-STRUCTURE.md` for detailed organization
 
 ## Troubleshooting
 
