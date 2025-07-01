@@ -1,0 +1,11 @@
+{
+ "db_host": "db",
+ "db_name": "npm_db",
+ "db_password": "erpnext123",
+ "db_port": 3306,
+ "db_type": "mariadb",
+ "db_user": "erpnext",
+ "redis_cache_url": "redis://redis_cache:6379",
+ "redis_queue_url": "redis://redis_queue:6379",
+ "redis_socketio_url": "redis://redis_queue:6379"
+}

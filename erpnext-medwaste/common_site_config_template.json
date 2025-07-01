@@ -1,0 +1,10 @@
+{
+ "db_host": "db",
+ "db_port": 3306,
+ "default_site": "localhost",
+ "redis_cache_url": "redis://redis_cache:6379",
+ "redis_queue_url": "redis://redis_queue:6379",
+ "redis_socketio_url": "redis://redis_queue:6379",
+ "maintenance_mode": 0,
+ "pause_scheduler": 0
+}
