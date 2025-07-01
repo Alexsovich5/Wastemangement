@@ -115,6 +115,16 @@ Thumbs.db
 # Docker volumes data (if stored locally)
 volumes/
 data/
+db_data/
+erpnext_data/
+erpnext_logs/
+redis_cache_data/
+redis_queue_data/
+npm_data/
+npm_letsencrypt/
+
+# Test screenshots
+*.png
 
 # Backup files
 *.bak

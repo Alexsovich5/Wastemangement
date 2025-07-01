@@ -41,11 +41,29 @@
 
 After initial setup, follow the configuration guide to customize ERPNext for medical waste management operations.
 
+## Environment Configuration
+
+This project supports multiple environments (development, staging, production):
+
+1. **Switch environments:**
+   ```bash
+   ./load-env.sh development  # Default
+   ./load-env.sh staging
+   ./load-env.sh production
+   ```
+
+2. **Environment files:**
+   - `.env.example` - Template for development
+   - `.env.staging` - Staging configuration
+   - `.env.production` - Production configuration (requires strong passwords)
+
 ## Troubleshooting
 
-1. **Port conflicts:** If port 8000 is in use, edit docker-compose.yml to change ERPNext port
+1. **Port conflicts:** Use `./load-env.sh` to switch to different port configurations
 2. **Memory issues:** Ensure Docker Desktop has at least 4GB RAM allocated
 3. **Permission issues:** Make sure Docker Desktop is running with proper permissions
+4. **Health check failures:** Services now have proper health checks - wait for all services to be healthy
+5. **Database connection:** The setup script now validates database connectivity before site creation
 
 ## Data Persistence
 

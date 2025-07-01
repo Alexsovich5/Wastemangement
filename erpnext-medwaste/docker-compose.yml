@@ -16,21 +16,26 @@ services:
       timeout: 20s
       retries: 10
     environment:
-      MYSQL_ROOT_PASSWORD: medwaste123
-      MYSQL_DATABASE: erpnext_db
-      MYSQL_USER: erpnext
-      MYSQL_PASSWORD: erpnext123
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
     networks:
       - erpnext-network
     ports:
-      - "3307:3306"
+      - "${DB_EXTERNAL_PORT}:3306"
 
   # Redis Cache
   redis_cache:
     image: redis:6-alpine
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+      interval: 30s
     volumes:
       - redis_cache_data:/data
     networks:
@@ -40,6 +45,11 @@ services:
   redis_queue:
     image: redis:6-alpine
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+      interval: 30s
     volumes:
       - redis_queue_data:/data
     networks:
@@ -50,32 +60,39 @@ services:
     image: frappe/erpnext:latest
     restart: unless-stopped
     environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_NAME=erpnext_db
-      - DB_ROOT_PASSWORD=medwaste123
-      - DB_PASSWORD=erpnext123
-      - REDIS_CACHE_URL=redis://redis_cache:6379
-      - REDIS_QUEUE_URL=redis://redis_queue:6379
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL}
+      - REDIS_QUEUE_URL=${REDIS_QUEUE_URL}
       - FRAPPE_SITE_NAME_HEADER=localhost
-      - ADMIN_PASSWORD=admin123
-      - INSTALL_APPS=erpnext
-      - DB_TIMEOUT=120
-      - MYSQL_CONNECT_TIMEOUT=60
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - INSTALL_APPS=${INSTALL_APPS}
+      - DB_TIMEOUT=${DB_TIMEOUT}
+      - MYSQL_CONNECT_TIMEOUT=${MYSQL_CONNECT_TIMEOUT}
+      - TZ=${TZ}
     volumes:
       - erpnext_data:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/method/ping || exit 1"]
+      timeout: 30s
+      retries: 5
+      interval: 60s
+      start_period: 120s
     networks:
       - erpnext-network
     depends_on:
       db:
         condition: service_healthy
       redis_cache:
-        condition: service_started
+        condition: service_healthy
       redis_queue:
-        condition: service_started
+        condition: service_healthy
     ports:
-      - "8081:8000"
+      - "${ERPNEXT_EXTERNAL_PORT}:${ERPNEXT_PORT}"
 
   # ERPNext Worker (Background Jobs)
   worker:
@@ -83,14 +100,15 @@ services:
     restart: unless-stopped
     command: ["bench", "worker", "--queue", "default,long,short"]
     environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_NAME=erpnext_db
-      - DB_PASSWORD=erpnext123
-      - REDIS_CACHE_URL=redis://redis_cache:6379
-      - REDIS_QUEUE_URL=redis://redis_queue:6379
-      - DB_TIMEOUT=120
-      - MYSQL_CONNECT_TIMEOUT=60
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL}
+      - REDIS_QUEUE_URL=${REDIS_QUEUE_URL}
+      - DB_TIMEOUT=${DB_TIMEOUT}
+      - MYSQL_CONNECT_TIMEOUT=${MYSQL_CONNECT_TIMEOUT}
+      - TZ=${TZ}
     volumes:
       - erpnext_data:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
@@ -100,9 +118,11 @@ services:
       db:
         condition: service_healthy
       redis_cache:
-        condition: service_started
+        condition: service_healthy
       redis_queue:
-        condition: service_started
+        condition: service_healthy
+      erpnext:
+        condition: service_healthy
 
   # ERPNext Scheduler (Cron Jobs)
   scheduler:
@@ -110,14 +130,15 @@ services:
     restart: unless-stopped
     command: ["bench", "schedule"]
     environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_NAME=erpnext_db
-      - DB_PASSWORD=erpnext123
-      - REDIS_CACHE_URL=redis://redis_cache:6379
-      - REDIS_QUEUE_URL=redis://redis_queue:6379
-      - DB_TIMEOUT=120
-      - MYSQL_CONNECT_TIMEOUT=60
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_CACHE_URL=${REDIS_CACHE_URL}
+      - REDIS_QUEUE_URL=${REDIS_QUEUE_URL}
+      - DB_TIMEOUT=${DB_TIMEOUT}
+      - MYSQL_CONNECT_TIMEOUT=${MYSQL_CONNECT_TIMEOUT}
+      - TZ=${TZ}
     volumes:
       - erpnext_data:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
@@ -127,24 +148,26 @@ services:
       db:
         condition: service_healthy
       redis_cache:
-        condition: service_started
+        condition: service_healthy
       redis_queue:
-        condition: service_started
+        condition: service_healthy
+      erpnext:
+        condition: service_healthy
 
   # Nginx Proxy Manager with Web UI
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
     restart: unless-stopped
     ports:
-      - "80:80"     # HTTP
-      - "443:443"   # HTTPS
-      - "81:81"     # Admin Web UI
+      - "${NGINX_HTTP_PORT}:80"     # HTTP
+      - "${NGINX_HTTPS_PORT}:443"   # HTTPS
+      - "${NGINX_ADMIN_PORT}:81"     # Admin Web UI
     environment:
-      DB_MYSQL_HOST: "db"
-      DB_MYSQL_PORT: 3306
-      DB_MYSQL_USER: "erpnext"
-      DB_MYSQL_PASSWORD: "erpnext123"
-      DB_MYSQL_NAME: "npm_db"
+      DB_MYSQL_HOST: "${DB_HOST}"
+      DB_MYSQL_PORT: ${DB_PORT}
+      DB_MYSQL_USER: "${DB_USER}"
+      DB_MYSQL_PASSWORD: "${DB_PASSWORD}"
+      DB_MYSQL_NAME: "${NPM_DB_NAME}"
     volumes:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt
