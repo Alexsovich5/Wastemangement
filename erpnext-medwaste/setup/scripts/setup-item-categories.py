@@ -83,21 +83,21 @@ def create_waste_item_template():
             "fieldname": "waste_classification",
             "label": "Waste Classification",
             "fieldtype": "Select",
-            "options": "\\nInfectious\\nSharps\\nPharmaceutical\\nPathological\\nChemotherapy\\nTrace Chemotherapy",
+            "options": "\nInfectious\nSharps\nPharmaceutical\nPathological\nChemotherapy\nTrace Chemotherapy",
             "reqd": 1
         },
         {
             "fieldname": "hazard_level",
             "label": "Hazard Level",
             "fieldtype": "Select",
-            "options": "\\nLow\\nMedium\\nHigh\\nExtreme",
+            "options": "\nLow\nMedium\nHigh\nExtreme",
             "reqd": 1
         },
         {
             "fieldname": "treatment_method",
             "label": "Required Treatment Method",
             "fieldtype": "Select",
-            "options": "\\nAutoclave\\nIncineration\\nChemical Treatment\\nMicrowave\\nIrradiation\\nSecure Landfill",
+            "options": "\nAutoclave\nIncineration\nChemical Treatment\nMicrowave\nIrradiation\nSecure Landfill",
             "reqd": 1
         },
         {
